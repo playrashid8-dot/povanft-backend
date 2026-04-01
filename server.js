@@ -3,49 +3,63 @@ const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 
-// Routes
+const app = express();
+
+// ✅ MIDDLEWARES
+app.use(cors({
+  origin: "*", // production me specific domain use karna
+}));
+app.use(express.json());
+
+// ✅ ROUTES
 const authRoutes = require("./routes/auth");
 const stakeRoutes = require("./routes/stake");
 const walletRoutes = require("./routes/wallet");
 
-const app = express();
-
-// Middlewares
-app.use(cors());
-app.use(express.json());
-
-// Test Route
+// ✅ TEST ROUTE
 app.get("/", (req, res) => {
   res.send("🚀 PovaNFT Backend Running...");
 });
 
-// API Routes
+// ✅ API ROUTES
 app.use("/api/auth", authRoutes);
 app.use("/api/stake", stakeRoutes);
 app.use("/api/wallet", walletRoutes);
 
-// Global Error Handler
+// ✅ GLOBAL ERROR HANDLER
 app.use((err, req, res, next) => {
   console.error("❌ Error:", err.stack);
-  res.status(500).json({ error: "Something went wrong" });
+  res.status(500).json({
+    success: false,
+    message: "Something went wrong"
+  });
 });
 
-// 🔥 DB CONNECT + WORKERS START (IMPORTANT)
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => {
-    console.log("✅ MongoDB Connected");
+// 🔥 DATABASE CONNECT
+mongoose.connect(process.env.MONGO_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true
+})
+.then(() => {
+  console.log("✅ MongoDB Connected");
 
-    // ✅ Workers yahan start honge (DB ready ke baad)
+  // ✅ SAFE WORKER START (IMPORTANT FIX)
+  try {
     require("./workers/stakeWorker");
     require("./workers/depositWorker");
     require("./workers/withdrawWorker");
+    console.log("⚙️ Workers started");
+  } catch (err) {
+    console.log("⚠️ Worker error:", err.message);
+  }
 
-    // 🚀 Server start
-    const PORT = process.env.PORT || 5000;
-    app.listen(PORT, () => {
-      console.log(`🔥 Server running on port ${PORT}`);
-    });
-  })
-  .catch(err => {
-    console.log("❌ DB Error:", err);
+  // 🚀 SERVER START
+  const PORT = process.env.PORT || 5000;
+  app.listen(PORT, () => {
+    console.log(`🔥 Server running on port ${PORT}`);
   });
+
+})
+.catch(err => {
+  console.log("❌ DB Error:", err.message);
+});

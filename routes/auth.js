@@ -2,38 +2,93 @@ const express = require("express");
 const router = express.Router();
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+
 const User = require("../models/User");
 
-// LOGIN
+
+// ======================
+// 🔐 REGISTER
+// ======================
+router.post("/register", async (req, res) => {
+  try {
+    const { username, email, password } = req.body;
+
+    // check existing user
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.json({ message: "User already exists" });
+    }
+
+    // hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // create user
+    const user = new User({
+      username,
+      email,
+      password: hashedPassword,
+      walletAddress: "Not Connected"
+    });
+
+    await user.save();
+
+    res.json({
+      message: "User registered successfully"
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      message: "Register failed"
+    });
+  }
+});
+
+
+// ======================
+// 🔐 LOGIN
+// ======================
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Check user
+    // check user
     const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ error: "User not found" });
+    if (!user) {
+      return res.json({ message: "User not found" });
+    }
 
-    // Check password
+    // check password
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(400).json({ error: "Wrong password" });
+    if (!isMatch) {
+      return res.json({ message: "Wrong password" });
+    }
 
-    // Generate token
+    // generate token
     const token = jwt.sign(
       { userId: user._id },
-      process.env.JWT_SECRET,
+      process.env.JWT_SECRET || "secret123",
       { expiresIn: "7d" }
     );
 
     res.json({
       message: "Login successful",
       token,
-      walletAddress: user.walletAddress
+      user: {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        walletAddress: user.walletAddress
+      }
     });
 
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Login failed" });
+    res.status(500).json({
+      message: "Login failed"
+    });
   }
 });
+
 
 module.exports = router;
