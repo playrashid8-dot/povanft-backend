@@ -3,30 +3,42 @@ const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 
-// ROUTES
-const authRoutes = require("./routes/auth");
-const walletRoutes = require("./routes/wallet");
-const userRoutes = require("./routes/user");
-const historyRoutes = require("./routes/history"); // ✅ yahan add karo
-
 const app = express();
 
-// MIDDLEWARE
+/* ======================
+   MIDDLEWARE
+====================== */
 app.use(cors());
 app.use(express.json());
 
-// TEST ROUTE
+/* ======================
+   ROUTES IMPORT
+====================== */
+const authRoutes = require("./routes/auth");
+const walletRoutes = require("./routes/wallet");
+const userRoutes = require("./routes/user");
+const historyRoutes = require("./routes/history");
+const stakeRoutes = require("./routes/stake"); // ✅ yahan shift kiya
+
+/* ======================
+   TEST ROUTE
+====================== */
 app.get("/", (req, res) => {
   res.send("🚀 PovaNFT Backend Running...");
 });
 
-// API ROUTES
+/* ======================
+   API ROUTES
+====================== */
 app.use("/api/auth", authRoutes);
 app.use("/api/wallet", walletRoutes);
 app.use("/api/user", userRoutes);
-app.use("/api/history", historyRoutes); // ✅ yahan hona chahiye
+app.use("/api/history", historyRoutes);
+app.use("/api/stake", stakeRoutes); // ✅ yahan hona chahiye
 
-// DB CONNECT + SERVER START
+/* ======================
+   DATABASE CONNECT
+====================== */
 mongoose.connect(process.env.MONGO_URI)
   .then(() => {
     console.log("✅ DB Connected");
