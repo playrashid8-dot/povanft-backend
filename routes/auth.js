@@ -2,93 +2,68 @@ const express = require("express");
 const router = express.Router();
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-
 const User = require("../models/User");
 
-
-// ======================
-// 🔐 REGISTER
-// ======================
+// REGISTER
 router.post("/register", async (req, res) => {
   try {
     const { username, email, password } = req.body;
 
-    // check existing user
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.json({ message: "User already exists" });
+    // Check existing user
+    const exist = await User.findOne({ email });
+    if (exist) {
+      return res.status(400).json({ error: "User already exists" });
     }
 
-    // hash password
+    // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // create user
+    // Create user
     const user = new User({
       username,
       email,
       password: hashedPassword,
-      walletAddress: "Not Connected"
+      walletAddress: "BNB_" + Math.floor(Math.random() * 1000000)
     });
 
     await user.save();
 
-    res.json({
-      message: "User registered successfully"
-    });
+    res.json({ message: "User registered successfully" });
 
   } catch (err) {
-    console.error(err);
-    res.status(500).json({
-      message: "Register failed"
-    });
+    res.status(500).json({ error: "Register failed" });
   }
 });
 
-
-// ======================
-// 🔐 LOGIN
-// ======================
+// LOGIN
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // check user
     const user = await User.findOne({ email });
     if (!user) {
-      return res.json({ message: "User not found" });
+      return res.status(400).json({ error: "User not found" });
     }
 
-    // check password
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.json({ message: "Wrong password" });
+    const match = await bcrypt.compare(password, user.password);
+    if (!match) {
+      return res.status(400).json({ error: "Wrong password" });
     }
 
-    // generate token
     const token = jwt.sign(
-      { userId: user._id },
-      process.env.JWT_SECRET || "secret123",
+      { id: user._id },
+      process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
 
     res.json({
-      message: "Login successful",
       token,
-      user: {
-        id: user._id,
-        username: user.username,
-        email: user.email,
-        walletAddress: user.walletAddress
-      }
+      wallet: user.walletAddress
     });
 
   } catch (err) {
-    console.error(err);
-    res.status(500).json({
-      message: "Login failed"
-    });
+    res.status(500).json({ error: "Login failed" });
   }
 });
-
 
 module.exports = router;
