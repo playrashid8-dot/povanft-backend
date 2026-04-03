@@ -1,11 +1,23 @@
 const mongoose = require("mongoose");
 
-const txSchema = new mongoose.Schema({
-  userId: mongoose.Schema.Types.ObjectId,
-  type: String,
-  amount: Number,
-  status: { type: String, default: "pending" },
-  createdAt: { type: Date, default: Date.now }
-});
+const transactionSchema = new mongoose.Schema({
+  userId: {
+    type: String,
+    required: true
+  },
+  type: {
+    type: String,
+    enum: ["deposit", "withdraw"],
+    required: true
+  },
+  amount: {
+    type: Number,
+    required: true
+  },
+  status: {
+    type: String,
+    default: "pending"
+  }
+}, { timestamps: true });
 
-module.exports = mongoose.model("Transaction", txSchema);
+module.exports = mongoose.model("Transaction", transactionSchema);
