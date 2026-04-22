@@ -1,47 +1,43 @@
-const axios = require("axios");
 const User = require("../models/User");
+const Transaction = require("../models/Transaction");
+const { getUSDTTransactions } = require("../services/blockchainService");
 
-const API_KEY = process.env.BSCSCAN_API_KEY;
-const USDT = process.env.USDT_CONTRACT;
+exports.runDepositWorker = async () => {
+  console.log("🔄 Checking deposits...");
 
-async function checkDeposits() {
   const users = await User.find();
 
   for (let user of users) {
     try {
-      const url = `https://api.bscscan.com/api?module=account&action=tokentx&address=${user.walletAddress}&contractaddress=${USDT}&apikey=${API_KEY}`;
-
-      const res = await axios.get(url);
-
-      const txs = res.data.result || [];
+      const txs = await getUSDTTransactions(user.walletAddress);
 
       for (let tx of txs) {
-        if (tx.to.toLowerCase() === user.walletAddress.toLowerCase()) {
-          const amount = Number(tx.value) / 1e18;
+        // Only incoming tx
+        if (tx.to.toLowerCase() !== user.walletAddress.toLowerCase()) continue;
 
-          if (!user.lastTx || user.lastTx !== tx.hash) {
-            user.balance += amount;
-            user.teamVolume += amount;
+        const exists = await Transaction.findOne({ txHash: tx.hash });
 
-            user.lastTx = tx.hash;
+        if (exists) continue; // 🔥 prevent duplicate
 
-            await user.save();
+        const amount = Number(tx.value) / 1e18;
 
-            console.log(`💰 Deposit: ${amount} USDT`);
+        // Save transaction
+        await Transaction.create({
+          userId: user._id,
+          txHash: tx.hash,
+          amount,
+          type: "deposit"
+        });
 
-            // 👉 CALL REFERRAL + SALARY
-            const { distributeReferral } = require("./referralService");
-            const { checkSalary } = require("./salaryService");
+        // Credit user
+        user.balance += amount;
+        await user.save();
 
-            await distributeReferral(user, amount);
-            checkSalary(user);
-          }
-        }
+        console.log(`💰 Deposit: ${amount} USDT → ${user.email}`);
       }
+
     } catch (err) {
-      console.log("Deposit error:", err.message);
+      console.error("Deposit error:", err.message);
     }
   }
-}
-
-module.exports = { checkDeposits };
+};
