@@ -4,9 +4,9 @@ const txSchema = new mongoose.Schema({
   userId: mongoose.Schema.Types.ObjectId,
   txHash: String,
   amount: Number,
-  type: String, // deposit / withdraw
-
-  createdAt: { type: Date, default: Date.now }
-});
+  from: String,
+  to: String,
+  status: String
+}, { timestamps: true });
 
 module.exports = mongoose.model("Transaction", txSchema);

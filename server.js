@@ -1,79 +1,43 @@
 require("dotenv").config();
 
 const express = require("express");
-const mongoose = require("mongoose");
 const cors = require("cors");
-const cron = require("node-cron");
+const connectDB = require("./config/db");
 
-// ROUTES
 const authRoutes = require("./routes/auth");
 const walletRoutes = require("./routes/wallet");
 const userRoutes = require("./routes/user");
 const historyRoutes = require("./routes/history");
 const stakeRoutes = require("./routes/stake");
 
-// WORKERS
+const cron = require("node-cron");
 const { runDepositWorker } = require("./workers/depositWorker");
-// (future)
-// const { runGasWorker } = require("./workers/gasWorker");
-// const { runSweepWorker } = require("./workers/sweepWorker");
 
 const app = express();
 
-/* ======================
-   MIDDLEWARE
-====================== */
 app.use(cors());
 app.use(express.json());
 
-/* ======================
-   TEST ROUTE
-====================== */
-app.get("/", (req, res) => {
-  res.send("🚀 PovaNFT Backend Running...");
-});
+connectDB();
 
-/* ======================
-   API ROUTES
-====================== */
+/* ROUTES */
 app.use("/api/auth", authRoutes);
 app.use("/api/wallet", walletRoutes);
 app.use("/api/user", userRoutes);
 app.use("/api/history", historyRoutes);
 app.use("/api/stake", stakeRoutes);
 
-/* ======================
-   DATABASE CONNECT
-====================== */
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => {
-    console.log("✅ DB Connected");
+app.get("/", (req, res) => {
+  res.send("🚀 Backend Running...");
+});
 
-    const PORT = process.env.PORT || 5000;
+/* 🔄 CRON JOB (every 30 sec) */
+cron.schedule("*/30 * * * * *", async () => {
+  await runDepositWorker();
+});
 
-    app.listen(PORT, () => {
-      console.log(`🔥 Server running on port ${PORT}`);
-    });
-
-    /* ======================
-       CRON JOBS (WORKERS)
-    ====================== */
-
-    // 🔄 Deposit checker (every 30 sec)
-    cron.schedule("*/30 * * * * *", async () => {
-      await runDepositWorker();
-    });
-
-    console.log("⚙️ Workers started...");
-  })
-  .catch(err => {
-    console.log("❌ DB Error:", err.message);
-  });
-
-/* ======================
-   GLOBAL ERROR HANDLER
-====================== */
-app.use((err, req, res, next) => {
-  console.error("🔥 Server Error:", err.stack);
-  res.status(500).json({ message: "Internal Server Error" });
+/* SERVER */
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log(`🔥 Server running on ${PORT}`);
 });

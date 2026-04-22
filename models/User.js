@@ -12,7 +12,9 @@ const userSchema = new mongoose.Schema({
 
   balance: { type: Number, default: 0 },
 
-  createdAt: { type: Date, default: Date.now }
-});
+  // 🆕 deposit tracking
+  lastCheckedBlock: { type: Number, default: 0 }
+
+}, { timestamps: true });
 
 module.exports = mongoose.model("User", userSchema);

@@ -1,43 +1,21 @@
-const User = require("../models/User");
-const Transaction = require("../models/Transaction");
-const { getUSDTTransactions } = require("../services/blockchainService");
+const axios = require("axios");
 
-exports.runDepositWorker = async () => {
-  console.log("🔄 Checking deposits...");
+const getUSDTTransactions = async (address) => {
+  try {
+    const url = `https://api.bscscan.com/api?module=account&action=tokentx&contractaddress=${process.env.USDT_CONTRACT}&address=${address}&apikey=${process.env.BSCSCAN_API_KEY}`;
 
-  const users = await User.find();
+    const res = await axios.get(url);
 
-  for (let user of users) {
-    try {
-      const txs = await getUSDTTransactions(user.walletAddress);
+    if (res.data.status !== "1") return [];
 
-      for (let tx of txs) {
-        // Only incoming tx
-        if (tx.to.toLowerCase() !== user.walletAddress.toLowerCase()) continue;
+    return res.data.result;
 
-        const exists = await Transaction.findOne({ txHash: tx.hash });
-
-        if (exists) continue; // 🔥 prevent duplicate
-
-        const amount = Number(tx.value) / 1e18;
-
-        // Save transaction
-        await Transaction.create({
-          userId: user._id,
-          txHash: tx.hash,
-          amount,
-          type: "deposit"
-        });
-
-        // Credit user
-        user.balance += amount;
-        await user.save();
-
-        console.log(`💰 Deposit: ${amount} USDT → ${user.email}`);
-      }
-
-    } catch (err) {
-      console.error("Deposit error:", err.message);
-    }
+  } catch (err) {
+    console.log("BSC API Error:", err.message);
+    return [];
   }
+};
+
+module.exports = {
+  getUSDTTransactions
 };
